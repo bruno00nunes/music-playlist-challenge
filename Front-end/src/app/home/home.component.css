@@ -1,0 +1,96 @@
+.home-not-logged {
+    margin-top: 50px;
+}
+
+.home-logo {
+  max-width: 109px;
+  display: block;
+  margin: 0 auto;
+}
+
+.first-part,
+.second-part {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 50px 0;
+}
+
+.first-part img {
+    margin-top: 55px;
+    max-width: 360px;
+}
+
+.second-part img {
+    margin-top: 5px;
+    max-width: 360px;
+}
+
+.left-first {
+    float: left;
+}
+
+.left-first p {
+    font-size: 15pt;
+}
+
+.right-first {
+    float: right;
+}
+
+.left-first,
+.right-first {
+    display: inline-block;
+    width: 65%;
+}
+
+.left-second {
+    float: left;
+}
+
+.right-second {
+    float: right;
+}
+
+.right-second p {
+    font-size: 15pt;
+}
+
+.left-second,
+.right-second {
+    display: inline-block;
+    width: 65%;
+}
+
+/*User logged*/
+
+.home-banner{
+    width: 100%;
+}
+
+.manager-home {
+    margin: 95px 180px;
+    display:flex;
+}
+
+.teams-user {
+  border-radius: 20px;
+  background: #28303F;
+  padding: 20px;
+  width: 450px;
+  height: 320px;
+  /*margin: 20px 0;*/
+}
+
+.today-user {
+  border-radius: 20px;
+  background: #28303F;
+  padding: 20px;
+  width: 450px;
+  height: 320px;
+  margin-left: auto;
+}
+
+.label-manager-home {
+  font-size: 26px;
+  margin: 20px 40px;
+}

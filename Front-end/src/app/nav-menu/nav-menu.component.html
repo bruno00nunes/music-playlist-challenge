@@ -1,0 +1,90 @@
+<header>
+  <!-- Popups Start-->
+  <div class="popup-container" *ngIf="currentPopup != 'none'" (click)="this.currentPopup = 'none'">
+  </div>
+
+  <!-- Login popup-->
+  <div class="form-popup" *ngIf="currentPopup == 'login'">
+    <form action="" class="form-container" #loginform="ngForm" (ngSubmit)="loginSubmit(loginform)">
+      <a role="button" class="close" (click)="this.currentPopup = 'none'"></a>
+      <div class="input-field-container">
+        <label for="email"><b>Email</b></label>
+        <input type="text" placeholder="Enter Email" name="Email" required ngModel>
+      </div>
+      <div class="input-field-container">
+        <label for="password"><b>Password</b></label>
+        <input type="password" placeholder="Enter Password" name="Password" required ngModel>
+      </div>
+
+      <div class="flex-center">
+        <button type="submit" class="btn">Login</button>
+      </div>
+      <div class="flex-center small-text mt-2 change-popup">
+        Don't have an account yet? <a role="button" (click)="this.currentPopup = 'register'">Sign up here</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Register popup-->
+  <div class="form-popup" *ngIf="currentPopup == 'register'">
+    <form action="" class="form-container" #registerform="ngForm" (ngSubmit)="registerSubmit(registerform)">
+      <a role="button" class="close" (click)="this.currentPopup = 'none'"></a>
+      <div class="input-field-container">
+        <label for="email"><b>Email</b></label>
+        <input type="text" placeholder="Enter Email" name="email" required ngModel>
+      </div>
+      <div class="input-field-container">
+        <label for="password"><b>Password</b></label>
+        <input type="password" placeholder="Enter Password" name="password" required ngModel>
+      </div>
+      <div class="input-field-container">
+        <label for="confirmpassword"><b>Confirm Password</b></label>
+        <input type="password" placeholder="Enter Password" name="confirmpassword" required ngModel>
+      </div>
+      <div class="input-field-container">
+        <label for="plan"><b>Plan</b></label><br>
+        <select name="PlanID" id="plan" ngModel>
+          <option *ngFor="let plan of plans; let i = index" [value]="plans[i].ID">
+            {{plans[i].Name}}
+          </option>
+        </select>
+        
+      </div>
+
+      <div class="flex-center">
+        <button type="submit" class="btn">Sign up</button>
+      </div>
+      <div class="flex-center small-text mt-2 change-popup">
+        Already have an account? <a role="button" (click)="this.currentPopup = 'login'">Login here</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Sidebar Start-->
+  <nav class="sidenav">
+    <div class="sidenav-menu">
+      <a class="pl-5" routerLink="/" routerLinkActive="active"><i class="fas fa-home"></i> Home</a>
+    </div>
+    <div class="sidenav-bottom">
+      <div *ngIf="currentUser != null; else loggedOut" class="align-content">
+        <div class="d-flex flex-row justify-content-center mb-3">
+          <a role="button" onclick="alert('To implement')"><i class="fas fa-bell"></i></a>
+          <a role="button" (click)="userMenuVisible = !userMenuVisible">
+            <span>{{currentUser.Email}}</span>
+          </a>
+        </div>
+        <div class="user-menu" *ngIf="userMenuVisible" [@slideUp]>
+          <a class="pl-5" routerLink="/profile" routerLinkActive="active"><i class="fas fa-user"></i> Profile</a>
+          <a class="pl-5" routerLink="/settings" routerLinkActive="active"><i class="fas fa-cog"></i> Settings</a>
+          <a class="pl-5" role="button" (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </div>
+      <ng-template #loggedOut>
+        <div class="d-flex flex-row justify-content-center pb-4">
+          <a role="button" (click)="this.currentPopup = 'login'">LOGIN</a>
+          <a role="button" (click)="this.currentPopup = 'register'">SIGN UP</a>
+        </div>
+      </ng-template>
+    </div>
+  </nav>
+</header>
