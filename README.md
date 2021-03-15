@@ -1,1 +1,1 @@
-music-playlist-challenge
+Implementation of my version of the Music Playlist Challenge (#https://github.com/OrigamiTeam/challenges/tree/main/fullstack/music_playlist)
