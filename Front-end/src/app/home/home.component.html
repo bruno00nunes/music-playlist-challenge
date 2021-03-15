@@ -1,0 +1,27 @@
+<div class="home-logged" *ngIf="currentUser != null; else loggedOut">
+  <div class="manager-home">
+    <div class="teams-user">
+      <label class="label-manager-home">Music</label>
+    </div>
+  </div>
+</div>
+<ng-template #loggedOut>
+  <div class="container">
+    <div class="home-not-logged">
+      <div class="first-part">
+        <div class="left-first">
+          <h3>Music</h3>
+          <p>
+          </p>
+        </div>
+      </div>
+      <div class="second-part">
+        <div class="right-second">
+          <h3>Available Plans</h3>
+          <p>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</ng-template>
