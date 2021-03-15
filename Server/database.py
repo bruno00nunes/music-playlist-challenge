@@ -11,6 +11,7 @@ dbParams = config('postgresql')
 
 def fetch_from_table(table, field_value=None, field_name="ID"):
     """SELECT FROM A TABLE
+    TODO: Change parameters to a Dict containing (Column_name, Value) to be used in the Query filter
     Parameters
     ----------
     table : str
@@ -57,16 +58,16 @@ def insert_into_table(table, inserted):
     """
     conn = None
     try:
-        # connect to the PostgreSQL server
+        # Connect to the PostgreSQL server
         conn = psycopg2.connect(**dbParams)
 
-        # create a cursor
+        # Create a cursor
         cur = conn.cursor()
 
         field_names = '"' + '", "'.join(inserted.keys()) + '"'
         field_values = tuple(inserted.values())
 
-        # This is really weird, need this workaround because psycopg2 doesn't allow to add the values
+        # This is weird, need this workaround because psycopg2 doesn't allow to add the values
         # Directly into the query, must pass them as a tuple in the parameters of cursor.execute()
         value_placeholders = ""
         x = len(field_values)
@@ -77,13 +78,15 @@ def insert_into_table(table, inserted):
 
         query = f'INSERT INTO public."{table}"({field_names}) VALUES({value_placeholders}) RETURNING "ID";'
 
-        # execute a statement
+        # Execute a query and commit
         cur.execute(query, field_values)
-        inserted_id = cur.fetchone()[0]
-
-        inserted = fetch_from_table(table, inserted_id, "ID")
-
         conn.commit()
+
+        # Fetch new inserted item
+        inserted_id = cur.fetchone()[0]
+        inserted = fetch_from_table(table, inserted_id)
+
+        # Close connection
         cur.close()
         return inserted
     except (Exception, psycopg2.DatabaseError) as error:
