@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, make_response
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 from config import config
+import json
 import datetime
 import hashlib
 import database
@@ -8,6 +9,7 @@ import jwt
 
 app = Flask(__name__)
 CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
 
 server_params = config('server')
 jwt_params = config('jwt')
@@ -44,16 +46,17 @@ def authenticate_user(auth_header):
 
 @app.route('/api/plans/', defaults={'plan_id': None}, methods=['GET', 'POST'])
 @app.route('/api/plans/<int:plan_id>', methods=['GET', 'PUT', 'DELETE'])
+@cross_origin()
 def plan(plan_id):
-    user_verification = authenticate_user(request.headers.get('Authorization'))
-    if user_verification is None:
-        return make_response(jsonify({'status': 403, 'message': 'You must be logged in'}))
-
     if request.method == 'GET':
         fetched_plans = database.fetch_from_table(table="Plans", field_value=plan_id)
         return make_response(jsonify({'status': 200, 'message': fetched_plans}))
 
-    elif request.method == 'POST':
+    user_verification = authenticate_user(request.headers.get('Authorization'))
+    if user_verification is None:
+        return make_response(jsonify({'status': 403, 'message': 'You must be logged in'}))
+
+    if request.method == 'POST':
         try:
             form_data = request.form
 
@@ -113,6 +116,7 @@ def plan(plan_id):
 
 @app.route('/api/users/', defaults={'user_id': None}, methods=['GET'])
 @app.route('/api/users/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
+@cross_origin()
 def user(user_id):
     user_verification = authenticate_user(request.headers.get('Authorization'))
     if user_verification is None:
@@ -173,6 +177,7 @@ def user(user_id):
 
 @app.route('/api/music/', defaults={'music_id': None}, methods=['GET', 'POST'])
 @app.route('/api/music/<int:music_id>', methods=['GET', 'PUT', 'DELETE'])
+@cross_origin()
 def music(music_id):
     user_verification = authenticate_user(request.headers.get('Authorization'))
     if user_verification is None:
@@ -240,6 +245,7 @@ def music(music_id):
 
 @app.route('/api/user_music/<int:user_id>', defaults={'music_id': None}, methods=['GET', 'POST'])
 @app.route('/api/user_music/<int:user_id>/<int:music_id>', methods=['GET', 'DELETE'])
+@cross_origin()
 def user_music(user_id, music_id):
     user_verification = authenticate_user(request.headers.get('Authorization'))
     if user_verification is None:
@@ -289,9 +295,11 @@ def user_music(user_id, music_id):
 
 
 @app.route('/api/login', methods=['POST'])
+@cross_origin()
 def login():
     try:
-        form_data = request.form
+        print(request.json)
+        form_data = request.json
 
         # Hash password with sha256
         encrypted_password = hashlib.sha256(form_data["Password"].encode())
@@ -332,12 +340,14 @@ def login():
 
 
 @app.route('/api/register', methods=['POST'])
+@cross_origin()
 def register():
     try:
-        form_data = request.form
+        form_data = request.json
 
         # Check if email is unique
         email = f'\'{form_data["Email"]}\''
+
         test_user = database.fetch_from_table(table="Users", field_name="Email", field_value=email)
 
         if len(test_user) > 0:
