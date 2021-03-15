@@ -1,34 +1,54 @@
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
+from config import config
+import datetime
 import hashlib
 import database
-from config import config
+import jwt
 
 app = Flask(__name__)
 CORS(app)
 
-serverParams = config('server')
+server_params = config('server')
+jwt_params = config('jwt')
 
 
+# =======================
+# region Helper Functions
+def authenticate_user(auth_header):
+    """Authenticate a user based on the requests Bearer Token
+    Parameters
+    ----------
+    auth_header : str
+        Flask request's authorization string to get the JWT Token from
+    """
+    auth_token = auth_header.split(" ")[1] if auth_header else None
+
+    if auth_token is None:
+        return None
+
+    jwt_decoded = jwt.decode(auth_token, jwt_params["token"], algorithms=["HS256"])
+    fetched_user = database.fetch_from_table("Users", jwt_decoded["sub"])
+
+    if len(fetched_user) < 1:
+        return None
+    return fetched_user[0]
 
 
-
-# Creates a connection to postgresql database
-# psycopg2.connect(dbOptions)
-
-
-@app.route('/')
-def hello_world():
-    return "Uh oh, you shouldn't be here!!"
+# endregion
+# =======================
 
 
-# ===========
-#  API views
-# ===========
+# ================
+# region API views
 
 @app.route('/api/plans/', defaults={'plan_id': None}, methods=['GET', 'POST'])
 @app.route('/api/plans/<int:plan_id>', methods=['GET', 'PUT', 'DELETE'])
 def plan(plan_id):
+    user_verification = authenticate_user(request.headers.get('Authorization'))
+    if user_verification is None:
+        return make_response(jsonify({'status': 403, 'message': 'You must be logged in'}))
+
     if request.method == 'GET':
         fetched_plans = database.fetch_from_table(table="Plans", field_value=plan_id)
         return make_response(jsonify({'status': 200, 'message': fetched_plans}))
@@ -91,38 +111,16 @@ def plan(plan_id):
         return make_response(jsonify({'status': 200, 'message': deleted_plan}))
 
 
-@app.route('/api/users/', defaults={'user_id': None}, methods=['GET', 'POST'])
+@app.route('/api/users/', defaults={'user_id': None}, methods=['GET'])
 @app.route('/api/users/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
 def user(user_id):
+    user_verification = authenticate_user(request.headers.get('Authorization'))
+    if user_verification is None:
+        return make_response(jsonify({'status': 403, 'message': 'You must be logged in'}))
+
     if request.method == 'GET':
         fetched_users = database.fetch_from_table(table="Users", field_value=user_id)
         return make_response(jsonify({'status': 200, 'message': fetched_users}))
-
-    elif request.method == 'POST':
-        try:
-            form_data = request.form
-
-            # Check if email is unique
-            email = f'\'{form_data["Email"]}\''
-            test_user = database.fetch_from_table(table="Users", field_name="Email", field_value=email)
-
-            if len(test_user) > 0:
-                return make_response(jsonify({"status": 409, "message": "User already exists"}), 409)
-
-            # Hash password with sha256
-            encrypted_password = hashlib.sha256(form_data["Password"].encode())
-
-            new_user = {
-                "Email": form_data["Email"],
-                "Password": encrypted_password.hexdigest(),
-                "PlanID": form_data["PlanID"]
-            }
-
-            new_user = database.insert_into_table("Plans", new_user)
-            return make_response(jsonify({'status': 200, 'message': new_user}))
-        except (Exception, IndexError) as error:
-            print(error)
-            return make_response(jsonify({'status': 400, 'message': 'Invalid form data'}), 400)
 
     elif request.method == 'PUT':
         try:
@@ -176,6 +174,10 @@ def user(user_id):
 @app.route('/api/music/', defaults={'music_id': None}, methods=['GET', 'POST'])
 @app.route('/api/music/<int:music_id>', methods=['GET', 'PUT', 'DELETE'])
 def music(music_id):
+    user_verification = authenticate_user(request.headers.get('Authorization'))
+    if user_verification is None:
+        return make_response(jsonify({'status': 403, 'message': 'You must be logged in'}))
+
     if request.method == 'GET':
         fetched_music = database.fetch_from_table(table="Music", field_value=music_id)
         return make_response(jsonify({'status': 200, 'message': fetched_music}))
@@ -239,21 +241,28 @@ def music(music_id):
 @app.route('/api/user_music/<int:user_id>', defaults={'music_id': None}, methods=['GET', 'POST'])
 @app.route('/api/user_music/<int:user_id>/<int:music_id>', methods=['GET', 'DELETE'])
 def user_music(user_id, music_id):
-    # current_user = authenticate_user(request.authorization)
+    user_verification = authenticate_user(request.headers.get('Authorization'))
+    if user_verification is None:
+        return make_response(jsonify({'status': 403, 'message': 'You must be logged in'}))
 
     if request.method == 'GET':
         condition = f'and "MusicID" = {music_id}' if (music_id is not None) else ""
 
-        fetched_user_music = database.fetch_from_query(f'SELECT * FROM public."User_Music" where "UserID" = {user_id} {condition}')
+        fetched_user_music = database.fetch_from_query(
+            f'SELECT * FROM public."User_Music" where "UserID" = {user_id} {condition}')
         return make_response(jsonify({'status': 200, 'message': fetched_user_music}))
 
     elif request.method == 'POST':
+        if user_verification != user_id:
+            return make_response(
+                jsonify({'status': 403, 'message': 'You can\'t add music to other users playlist'}), 403)
+
         try:
             form_data = request.form
 
             new_music = {
-                "Name": form_data["Name"],
-                "PlanID": form_data["PlanID"]
+                "UserID": form_data["User"],
+                "MusicID": form_data["MusicID"]
             }
 
             new_music = database.insert_into_table("Music", new_music)
@@ -263,6 +272,10 @@ def user_music(user_id, music_id):
             return make_response(jsonify({'status': 400, 'message': 'Invalid form data'}), 400)
 
     elif request.method == 'DELETE':
+        if user_verification != user_id:
+            return make_response(
+                jsonify({'status': 403, 'message': 'You can\'t delete music from other users playlist'}), 403)
+
         # TODO: With more time, convert this into database function delete_from_table
         # Fetch result to be deleted
         condition = f'and "MusicID" = {music_id}' if (music_id is not None) else ""
@@ -270,24 +283,89 @@ def user_music(user_id, music_id):
         fetched_user_music = database.fetch_from_query(query)
 
         query = f'DELETE FROM public."User_Music" WHERE "UserID" = %s and "MusicID" = %s;'
-        database.execute_query(query, (user_id, music_id, ))
+        database.execute_query(query, (user_id, music_id,))
 
         return make_response(jsonify({'status': 200, 'message': fetched_user_music}))
 
 
-def authenticate_user(request_auth):
-    if request_auth is None:
-        return None
+@app.route('/api/login', methods=['POST'])
+def login():
+    try:
+        form_data = request.form
 
-    password = hashlib.md5(request_auth.password)
+        # Hash password with sha256
+        encrypted_password = hashlib.sha256(form_data["Password"].encode())
 
-    fetched_user = database.fetch_from_query(
-        f'SELECT * FROM public."User" WHERE '
-        f'"Email"="{request_auth.username}" AND '
-        f'"Password"="{password}"')
+        email_filter = f'"Email" = \'{form_data["Email"]}\''
+        password_filter = f'"Password" = \'{encrypted_password.hexdigest()}\''
 
-    return fetched_user
+        # Build select query
+        fetched_user = database.fetch_from_query(
+            f'SELECT * FROM public."Users" where {email_filter} and {password_filter}'
+        )
+
+        # Check if any user was selected, if not, credentials were wrong
+        if len(fetched_user) < 1:
+            return make_response(jsonify({'status': 401, 'message': 'Wrong credentials'}), 401)
+        fetched_user = fetched_user[0]
+
+        # Generate a JWT Token to use on authentication with other requests
+        payload = {
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=4),
+            'iat': datetime.datetime.utcnow(),
+            'sub': fetched_user["ID"]
+        }
+
+        fetched_user["Token"] = jwt.encode(
+            payload,
+            jwt_params["token"],
+            algorithm="HS256"
+        )
+
+        # Remove password to not send it to the user
+        fetched_user.pop("Password")
+
+        return make_response(jsonify({'status': 200, 'message': fetched_user}))
+    except (Exception, IndexError) as error:
+        print(error)
+        return make_response(jsonify({'status': 400, 'message': 'Invalid form data'}), 400)
+
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    try:
+        form_data = request.form
+
+        # Check if email is unique
+        email = f'\'{form_data["Email"]}\''
+        test_user = database.fetch_from_table(table="Users", field_name="Email", field_value=email)
+
+        if len(test_user) > 0:
+            return make_response(jsonify({"status": 409, "message": "User already exists"}), 409)
+
+        # Hash password with sha256
+        encrypted_password = hashlib.sha256(form_data["Password"].encode())
+
+        new_user = {
+            "Email": form_data["Email"],
+            "Password": encrypted_password.hexdigest(),
+            "PlanID": form_data["PlanID"]
+        }
+
+        new_user = database.insert_into_table("Users", new_user)[0]
+        return make_response(jsonify({'status': 200, 'message': new_user}))
+    except (Exception, IndexError) as error:
+        print(error)
+        return make_response(jsonify({'status': 400, 'message': 'Invalid form data'}), 400)
+
+
+# endregion
+# ================
+
+@app.route('/')
+def hello_world():
+    return "Uh oh, you shouldn't be here!!"
 
 
 if __name__ == "__main__":
-    app.run(**serverParams)
+    app.run(**server_params)
